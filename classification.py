@@ -11,9 +11,12 @@ from scipy import stats
 from tqdm import tqdm
 from tabulate import tabulate
 from os import walk
-direction = "C:/Users/PLUSR6000280/PycharmProjects/Uczenie_Maszynowe/data/"
-directionScores = "C:/Users/PLUSR6000280/PycharmProjects/Uczenie_Maszynowe/scores/"
-directionSamples = "C:/Users/PLUSR6000280/PycharmProjects/Uczenie_Maszynowe/samples/"
+import os
+
+path = os.path.dirname(os.path.abspath(__file__)) + "\\"
+data_path = path + 'data\\'
+scores_path = path + 'scores\\'
+samples_path = path + 'samples\\'
 
 classifiers = [MLPClassifier(random_state=1, max_iter=300),
                KNeighborsClassifier(n_neighbors=3),
@@ -25,7 +28,7 @@ kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1234)
 def classification():
     xList = []
     yList = []
-    filenames = next(walk(direction), (None, None, []))[2]
+    filenames = next(walk(data_path), (None, None, []))[2]
     for file in filenames:
         if file.startswith("X"):
             xList.append(file)
@@ -38,13 +41,12 @@ def classification():
         print("ERROR! X LIST IS DIFFERENT THAN Y LIST")
         return
 
-    # print(xList)
     scores = np.zeros((len(xList), 4, 10))
 
     for i in tqdm(range(len(xList))):
         print(xList[i])
-        X = np.load(direction + xList[i], allow_pickle=True)
-        y = np.load(direction + yList[i], allow_pickle=True)
+        X = np.load(data_path + xList[i], allow_pickle=True)
+        y = np.load(data_path + yList[i], allow_pickle=True)
 
         try:
             for fold_index, (train_index, test_index) in enumerate(tqdm(kf.split(X, y))):
@@ -60,8 +62,7 @@ def classification():
         except KeyError:
             print('Error! for data:' + str(xList[i]) + ' and ' + str(yList[i]))
 
-    # xList[i].split('_', 1)[1]
-    with open(directionScores + 'scores_' + str(len(xList)) + '_v2.npy', 'wb') as f:
+    with open(scores_path + 'scores_' + str(len(xList)) + '_v2.npy', 'wb') as f:
         np.save(f, scores)
 
     scores_mean = np.mean(scores, axis=2)
@@ -72,18 +73,17 @@ def classification():
 
 def checkSamples():
     samplesList = []
-    filenames = next(walk(directionSamples), (None, None, []))[2]
+    filenames = next(walk(samples_path), (None, None, []))[2]
     for file in filenames:
         samplesList.append(file)
 
     samplesList.sort()
-    uniqueGenres = np.load('C:/Users/PLUSR6000280/PycharmProjects/Uczenie_Maszynowe/' + 'Y_UniqueGenres.npy', allow_pickle=True)
-    # print(uniqueGenres)
+    uniqueGenres = np.load(path + 'Y_UniqueGenres.npy', allow_pickle=True)
 
     genresDifferenceArray = []
     for item in samplesList:
         itemSplitted = item.split('_')
-        sample = np.load(directionSamples + item, allow_pickle=True)
+        sample = np.load(samples_path + item, allow_pickle=True)
         sampleConcat = sample[:, 1]
 
         if sampleConcat[0] > sampleConcat[1]:
@@ -97,13 +97,12 @@ def checkSamples():
                                       sampleConcat[1],
                                       ir))
 
-    # Nm / (Nm + Nw)
     print(genresDifferenceArray)
     return genresDifferenceArray
 
 
 def statistics(N):
-    scoresDone = np.load(directionScores + 'scores_20_v2.npy', allow_pickle=True)
+    scoresDone = np.load(scores_path + 'scores_20_v2.npy', allow_pickle=True)
 
     # Ranks
     scores_mean = np.mean(scoresDone, axis=2)
@@ -116,21 +115,18 @@ def statistics(N):
     print("\nMean ranks:\n", mean_ranks)
 
     alfa = 0.05
-    t_statistic = np.zeros((20, 4, 4))
-    p_value = np.zeros((20, 4, 4))
-    # print(scoresDone[0, 0])
+    t_statistic = p_value = np.zeros((20, 4, 4))
 
     for i in range(scoresDone.shape[0]):
-        #DATASETS
+        # DATASETS
         for j in range(scoresDone.shape[1]):
-            #CLASSIFIERS
+            # CLASSIFIERS
             for k in range(scoresDone.shape[1]):
                 t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
 
     significantlyBetterStatArray = np.logical_and(t_statistic > 0, p_value <= alfa)
-    print(significantlyBetterStatArray.astype(int))
+    # print(significantlyBetterStatArray.astype(int))
     listOfTrue = np.argwhere(significantlyBetterStatArray)
-    # print(listOfTrue)
 
     new_list, temp = [], listOfTrue[-1]
     for item in range(0, temp[0]+1):
