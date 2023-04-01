@@ -115,7 +115,8 @@ def statistics(N):
     print("\nMean ranks:\n", mean_ranks)
 
     alfa = 0.05
-    t_statistic = p_value = np.zeros((20, 4, 4))
+    t_statistic = np.zeros((20, 4, 4))
+    p_value = np.zeros((20, 4, 4))
 
     for i in range(scoresDone.shape[0]):
         # DATASETS
@@ -138,7 +139,6 @@ def statistics(N):
 
     for i in indexed_matrix:
         print(i)
-
 
 def cv52cft(a, b, J=5, k=2):
     """

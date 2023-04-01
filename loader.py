@@ -17,7 +17,9 @@ database_path = "C:\\Users\\PLUSR6000280\\Documents\\Studia\\Uczenie maszynowe\\
 print('loader started execute')
 library = {}
 threads = list()
-genresArray = plotArray = photosArray = []
+genresArray = []
+plotArray = []
+photosArray = []
 os.chdir(database_path)
 
 ExecuteGenres = False  # change value to got .npy files created

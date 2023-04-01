@@ -52,6 +52,19 @@ def text(execute, movies, maxFeatures):
 
 
 def getMoviesWithSpecificGenres(genresList):
+    ############
+    # Get movies with specific genres but without duplicates in both genres
+    # Works only if the genresList == 2
+    ############
+
+    if len(genresList) == 1:
+        getMoviesWithSpecificGenre(genresList)
+        exit()
+    elif len(genresList) > 2:
+        raise Exception('getMoviesWithSpecificGenres cannot have more than two genres')
+    elif len(genresList) < 1:
+        raise Exception('getMoviesWithSpecificGenres got null list')
+
     uniqueGenres = np.load(path + 'Y_UniqueGenres.npy', allow_pickle=True)
     indexOfGenres = []
     labels = []
@@ -62,7 +75,7 @@ def getMoviesWithSpecificGenres(genresList):
         if uniqueGenresFound[0].shape[0] != 0:
             indexOfGenres.append(uniqueGenresFound[0][0])
 
-    print(str(genresList) + ' -> ' + str(indexOfGenres))
+    # print(str(genresList) + ' -> ' + str(indexOfGenres))
     genresArray = np.load(path + 'Y_GenresArray.npy', allow_pickle=True)
 
     for i, genre in enumerate(genresArray):
@@ -80,6 +93,32 @@ def getMoviesWithSpecificGenres(genresList):
     unique, counts = np.unique(labels, return_counts=True)
     samples = list(zip(unique, counts))
     return indexOfGenres, movies, labels, samples
+
+
+def getMoviesWithSpecificGenre(genre):
+    ############
+    # Works if the genresList == 1
+    ############
+
+    if len(genre) != 1:
+        raise Exception("getMoviesWithSpecificGenre method works only for 1 genre")
+
+    uniqueGenres = np.load(path + 'Y_UniqueGenres.npy', allow_pickle=True)
+    indexOfGenre = np.where(uniqueGenres == genre)[0][0]
+
+    genresArray = np.load(path + 'Y_GenresArray.npy', allow_pickle=True)
+    labels = []
+    movies = []
+
+    for i, movie_genres in enumerate(genresArray):
+        if movie_genres[indexOfGenre] == 1:
+            labels.append(indexOfGenre)
+            movies.append(i)
+
+    print('Movies found: ' + str(len(movies)))
+    unique, counts = np.unique(labels, return_counts=True)
+    samples = list(zip(unique, counts))
+    return indexOfGenre, movies, labels, samples
 
 
 def getMoviesWithRandomGenres(genresArray, genresSeparated):
@@ -104,6 +143,11 @@ def getMoviesWithRandomGenres(genresArray, genresSeparated):
 
 
 def prepareNewRandomGenres(N):
+    ############
+    # This has a drawback, sometimes can generate the two genres where there is
+    # not common movies or there is a small group of them.
+    # Has to be changed later
+    ############
     firstRandomGenres = random.sample(range(27), N)
     secondRandomGenres = random.sample(range(27), N)
     genresArray = np.load(path + 'Y_GenresArray.npy', allow_pickle=True)
@@ -129,7 +173,10 @@ def saveNpyFiles(xValue, yValue, fileSamples, genresIndexList):
 
 
 def manualGenres():
+    ############
     # Not used anymore
+    ############
+
     Genres = ['Sci-Fi', 'Crime']
     genresIndexes, moviesGenresIndexesArray, samples, y = getMoviesWithSpecificGenres(Genres)
     var1 = text(True, moviesGenresIndexesArray, 100)
@@ -151,6 +198,8 @@ def checkSamples():
 
 if __name__ == '__main__':
     print('prepare main')
-    # getMoviesWithSpecificGenres(['Crime', 'Music'])
+    genres = ['Action', 'Sci-Fi']
+
+    getMoviesWithSpecificGenres(genres)
     # prepareNewRandomGenres(20)
     # checkSamples()
