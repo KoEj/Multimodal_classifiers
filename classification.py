@@ -190,7 +190,7 @@ def statistics(scoresDone):
     for item in range(0, temp[0]+1):
         new_list.append([[x[1], x[2]] for x in listOfTrue if x[0] == item])
 
-    mapping = {0: 'MLPC', 1: 'KNN', 2: 'DTC', 3: 'SVC'}
+    mapping = {0: 'MLP', 1: 'KNN', 2: 'DTC', 3: 'SVC'}
 
     indexed_matrix = [[(mapping[x[0]], mapping[x[1]]) for x in sublist] for sublist in new_list]
 

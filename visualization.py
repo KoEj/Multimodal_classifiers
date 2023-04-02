@@ -73,7 +73,7 @@ def getColorMap(genresList):
     plt.figure(2, figsize=(11, 3))
     plt.imshow(images.astype(int))
     plt.tight_layout(pad=2)
-    plt.suptitle(' '.join(genresList))
+    # plt.suptitle(' '.join(genresList))
     plt.axis("off")
     plt.savefig(visualization_path + 'colormap_' + str('_'.join(genresList).lower()))
 
@@ -81,7 +81,7 @@ def getColorMap(genresList):
 if __name__ == '__main__':
 
     print('visualization')
-    genres = ['War', 'Family']
+    genres = ['Family', 'War']
 
-    getVisualization(5, genres)
-    # getColorMap(genres)
+    # getVisualization(5, genres)
+    getColorMap(genres)
