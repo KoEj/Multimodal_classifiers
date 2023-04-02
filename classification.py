@@ -17,6 +17,8 @@ path = os.path.dirname(os.path.abspath(__file__)) + "\\"
 data_path = path + 'data\\'
 scores_path = path + 'scores\\'
 samples_path = path + 'samples\\'
+data_path_two = path + 'data2\\'
+scores_path_two = path + 'scores2\\'
 
 classifiers = [MLPClassifier(random_state=1, max_iter=300),
                KNeighborsClassifier(n_neighbors=3),
@@ -25,7 +27,8 @@ classifiers = [MLPClassifier(random_state=1, max_iter=300),
 
 kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1234)
 
-def classification():
+
+def classificationTwoGenres():
     xList = []
     yList = []
     filenames = next(walk(data_path), (None, None, []))[2]
@@ -44,7 +47,6 @@ def classification():
     scores = np.zeros((len(xList), 4, 10))
 
     for i in tqdm(range(len(xList))):
-        print(xList[i])
         X = np.load(data_path + xList[i], allow_pickle=True)
         y = np.load(data_path + yList[i], allow_pickle=True)
 
@@ -69,6 +71,62 @@ def classification():
     print(np.around(scores_mean, decimals=3))
     print(tabulate([scores_mean]))
 
+
+def classificationTextOrPhotos(text_incl=False, photos_incl=False):
+    if not text_incl and not photos_incl:
+        raise Exception('One parameter should be True [text_incl, photos_incl]')
+
+    xList = []
+    yList = []
+    filenames = next(walk(data_path_two), (None, None, []))[2]
+    fileName = ''
+
+    if text_incl and photos_incl:
+        fileName = '_'
+    if text_incl:
+        fileName = '_text_'
+    elif photos_incl:
+        fileName = '_photos_'
+
+    for file in filenames:
+        if file.startswith("X" + fileName):
+            xList.append(file)
+        if file.startswith("y" + fileName):
+            yList.append(file)
+
+    yList.sort()
+
+    if len(xList) != len(yList):
+        print("ERROR! X LIST IS DIFFERENT THAN Y LIST")
+        return
+
+    scores = np.zeros((len(xList), 4, 10))
+
+    for i in tqdm(range(len(xList))):
+        print(xList[i])
+        X = np.load(data_path_two + xList[i], allow_pickle=True)
+        y = np.load(data_path_two + yList[i], allow_pickle=True)
+
+        try:
+            for fold_index, (train_index, test_index) in enumerate(tqdm(kf.split(X, y))):
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+
+                for cls_index, base_cls in enumerate(classifiers):
+                    cls = clone(base_cls)
+                    cls.fit(X_train, y_train)
+                    y_pred = cls.predict(X_test)
+                    score = balanced_accuracy_score(y_test, y_pred)
+                    scores[i, cls_index, fold_index] = score
+        except KeyError:
+            print('Error! for data:' + str(xList[i]) + ' and ' + str(yList[i]))
+
+    with open(scores_path_two + 'scores' + fileName + '.npy', 'wb') as f:
+        np.save(f, scores)
+
+    scores_mean = np.mean(scores, axis=2)
+    print(np.around(scores_mean, decimals=3))
+    print(tabulate([scores_mean]))
 
 
 def checkSamples():
@@ -101,8 +159,7 @@ def checkSamples():
     return genresDifferenceArray
 
 
-def statistics(N):
-    scoresDone = np.load(scores_path + 'scores_20_v2.npy', allow_pickle=True)
+def statistics(scoresDone):
 
     # Ranks
     scores_mean = np.mean(scoresDone, axis=2)
@@ -139,6 +196,7 @@ def statistics(N):
 
     for i in indexed_matrix:
         print(i)
+
 
 def cv52cft(a, b, J=5, k=2):
     """
@@ -184,6 +242,8 @@ if __name__ == '__main__':
     # scoresDone = np.load(directionScores + 'scores_20_v2', allow_pickle=True)
     # print(tabulate([scoresDone]))
 
-    # classification()
-    statistics(20)
-    # checkSamples()
+    # classificationTwoGenres()
+    # classificationTextOrPhotos(text_incl=False, photos_incl=True)
+
+    scoresDone = np.load(scores_path_two + 'scores_text_.npy', allow_pickle=True)
+    statistics(scoresDone)

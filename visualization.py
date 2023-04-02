@@ -14,6 +14,7 @@ visualization_path = path + "visualization\\"
 
 def getVisualization(N, genresList):
     uniqueGenres = np.load(path + 'Y_UniqueGenres.npy', allow_pickle=True)
+    print(uniqueGenres)
 
     if len(genresList) == 1:
         genresSeparated, movies, labels, samples = getMoviesWithSpecificGenre(genresList)
@@ -38,7 +39,7 @@ def getVisualization(N, genresList):
         ax[1, i].imshow(wordcloud, interpolation='bilinear')
         ax[1, i].axis("off")
     plt.tight_layout(pad=1, w_pad=0.5, h_pad=1.5)
-    plt.savefig(visualization_path + 'wordcloud_' + str('_'.join(genresList).lower()))
+    plt.savefig(visualization_path + 'wordcloud_5_' + str('_'.join(genresList).lower()))
 
 
 def find_integers(C):
@@ -78,8 +79,9 @@ def getColorMap(genresList):
 
 
 if __name__ == '__main__':
-    print('visualization')
-    genres = ['Action', 'Sci-Fi']
 
-    getVisualization(10, genres)
+    print('visualization')
+    genres = ['War', 'Family']
+
+    getVisualization(5, genres)
     # getColorMap(genres)

@@ -8,6 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import random
 from os import walk
 import os
+import re
 from nltk.corpus import stopwords
 from nltk.tokenize.treebank import TreebankWordTokenizer
 
@@ -162,13 +163,36 @@ def prepareNewRandomGenres(N):
         saveNpyFiles(X, y, samples, genresIndexes)
 
 
-def saveNpyFiles(xValue, yValue, fileSamples, genresIndexList):
+def prepareNpyFilesTextOrPhotos(genres_incl, text_incl, photos_incl):
+    if not text_incl and not photos_incl:
+        raise Exception('One parameter should be True [text_incl, photos_incl]')
+
+    genreIndex, moviesGenresIndexesArray, y, samples = getMoviesWithSpecificGenres(genres_incl)
+    var1 = text(text_incl, moviesGenresIndexesArray, 100)
+    var2 = photos(photos_incl, moviesGenresIndexesArray)
+    str_npy = ''
+
+    if text_incl and photos_incl:
+        X = np.hstack([var1, var2])
+        str_npy = ''
+    if text_incl:
+        X = var1
+        str_npy = 'text'
+    elif photos_incl:
+        X = var2
+        str_npy = 'photos'
+
+    y = LabelEncoder().fit_transform(y)
+    saveNpyFiles(X, y, samples, genreIndex, extra_string=str_npy)
+
+
+def saveNpyFiles(xValue, yValue, fileSamples, genresIndexList, extra_string=''):
     filename = '_'.join(str(i) for i in genresIndexList)
-    with open(path + 'X_' + filename + '.npy', 'wb') as f:
+    with open(data_path + 'X_' + extra_string + '_' + filename + '.npy', 'wb') as f:
         np.save(f, xValue)
-    with open(data_path + 'y_' + filename + '.npy', 'wb') as f:
+    with open(data_path + 'y_' + extra_string + '_' + filename + '.npy', 'wb') as f:
         np.save(f, yValue)
-    with open(samples_path + 'sample_' + filename + '.npy', 'wb') as f:
+    with open(samples_path + 'sample_' + extra_string + '_' + filename + '.npy', 'wb') as f:
         np.save(f, fileSamples)
 
 
@@ -192,14 +216,28 @@ def checkSamples():
     filenames = next(walk(samplesDirection), (None, None, []))[2]
     for i, file in enumerate(filenames):
         samplesList.append((file, np.load(samplesDirection + file, allow_pickle=True)))
-        print(samplesList[i])
-    print(len(samplesList))
+        # print(samplesList[i])
+    # print(len(samplesList))
+    return samplesList
+
+
+def createFilesFromRandomGenresCreated(text_incl, photos_incl):
+    uniqueGenres = np.load(path + 'Y_UniqueGenres.npy', allow_pickle=True)
+    print(uniqueGenres)
+    genresNumberArray = []
+
+    samplesList = checkSamples()
+    for i, sample in tqdm(enumerate(samplesList)):
+        matches = re.findall(r'\d+', samplesList[i][0])
+        numbers = [int(match) for match in matches]
+        prepareNpyFilesTextOrPhotos(genres_incl=uniqueGenres[numbers], text_incl=text_incl, photos_incl=photos_incl)
 
 
 if __name__ == '__main__':
     print('prepare main')
     genres = ['Action', 'Sci-Fi']
 
-    getMoviesWithSpecificGenres(genres)
+
+    # getMoviesWithSpecificGenres(genres)
     # prepareNewRandomGenres(20)
-    # checkSamples()
+    createFilesFromRandomGenresCreated(text_incl=False, photos_incl=True)
