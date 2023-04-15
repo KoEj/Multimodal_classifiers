@@ -6,7 +6,8 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
-from scipy.stats import ttest_ind, rankdata
+from sklearn.naive_bayes import GaussianNB
+from imblearn.over_sampling import RandomOverSampler
 from scipy import stats
 from tqdm import tqdm
 from tabulate import tabulate
@@ -23,9 +24,11 @@ scores_path_two = path + 'scores2\\'
 classifiers = [MLPClassifier(random_state=1, max_iter=300),
                KNeighborsClassifier(n_neighbors=3),
                DecisionTreeClassifier(),
-               SVC()]
+               SVC(),
+               GaussianNB()]
 
 kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1234)
+ros = RandomOverSampler(random_state=24)
 
 
 def classificationTwoGenres():
@@ -44,7 +47,7 @@ def classificationTwoGenres():
         print("ERROR! X LIST IS DIFFERENT THAN Y LIST")
         return
 
-    scores = np.zeros((len(xList), 4, 10))
+    scores = np.zeros((len(xList), len(classifiers), 10))
 
     for i in tqdm(range(len(xList))):
         X = np.load(data_path + xList[i], allow_pickle=True)
@@ -54,17 +57,18 @@ def classificationTwoGenres():
             for fold_index, (train_index, test_index) in enumerate(tqdm(kf.split(X, y))):
                 X_train, X_test = X[train_index], X[test_index]
                 y_train, y_test = y[train_index], y[test_index]
+                X_res_train, y_res_train = ros.fit_resample(X_train, y_train)
 
                 for cls_index, base_cls in enumerate(classifiers):
                     cls = clone(base_cls)
-                    cls.fit(X_train, y_train)
+                    cls.fit(X_res_train, y_res_train)
                     y_pred = cls.predict(X_test)
                     score = balanced_accuracy_score(y_test, y_pred)
                     scores[i, cls_index, fold_index] = score
         except KeyError:
             print('Error! for data:' + str(xList[i]) + ' and ' + str(yList[i]))
 
-    with open(scores_path + 'scores_' + str(len(xList)) + '_v2.npy', 'wb') as f:
+    with open(scores_path + 'scores_' + str(len(xList)) + '_v3.npy', 'wb') as f:
         np.save(f, scores)
 
     scores_mean = np.mean(scores, axis=2)
@@ -100,7 +104,7 @@ def classificationTextOrPhotos(text_incl=False, photos_incl=False):
         print("ERROR! X LIST IS DIFFERENT THAN Y LIST")
         return
 
-    scores = np.zeros((len(xList), 4, 10))
+    scores = np.zeros((len(xList), len(classifiers), 10))
 
     for i in tqdm(range(len(xList))):
         print(xList[i])
@@ -111,17 +115,18 @@ def classificationTextOrPhotos(text_incl=False, photos_incl=False):
             for fold_index, (train_index, test_index) in enumerate(tqdm(kf.split(X, y))):
                 X_train, X_test = X[train_index], X[test_index]
                 y_train, y_test = y[train_index], y[test_index]
+                X_res_train, y_res_train = ros.fit_resample(X_train, y_train)
 
                 for cls_index, base_cls in enumerate(classifiers):
                     cls = clone(base_cls)
-                    cls.fit(X_train, y_train)
+                    cls.fit(X_res_train, y_res_train)
                     y_pred = cls.predict(X_test)
                     score = balanced_accuracy_score(y_test, y_pred)
                     scores[i, cls_index, fold_index] = score
         except KeyError:
             print('Error! for data:' + str(xList[i]) + ' and ' + str(yList[i]))
 
-    with open(scores_path_two + 'scores' + fileName + '.npy', 'wb') as f:
+    with open(scores_path_two + 'scores' + fileName + 'v3.npy', 'wb') as f:
         np.save(f, scores)
 
     scores_mean = np.mean(scores, axis=2)
@@ -160,42 +165,35 @@ def checkSamples():
 
 
 def statistics(scoresDone):
-
-    # Ranks
+    mapping = {0: 'MLP', 1: 'KNN', 2: 'DTC', 3: 'SVC', 4: 'GNB'}
     scores_mean = np.mean(scoresDone, axis=2)
     print(np.around(scores_mean, decimals=3))
-    ranks = []
-    for ms in scores_mean:
-        ranks.append(rankdata(ms).tolist())
-    ranks = np.array(ranks)
-    mean_ranks = np.mean(ranks, axis=0)
-    print("\nMean ranks:\n", mean_ranks)
 
     alfa = 0.05
-    t_statistic = np.zeros((20, 4, 4))
-    p_value = np.zeros((20, 4, 4))
+    t_statistic = np.zeros((20, len(classifiers), len(classifiers)))
+    p_value = np.zeros((20, len(classifiers), len(classifiers)))
 
     for i in range(scoresDone.shape[0]):
         # DATASETS
         for j in range(scoresDone.shape[1]):
             # CLASSIFIERS
             for k in range(scoresDone.shape[1]):
-                t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
+                t_statistic[i, j, k], p_value[i, j, k] = stats.ranksums(scoresDone[i, j], scoresDone[i, k])
+                # t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
 
     significantlyBetterStatArray = np.logical_and(t_statistic > 0, p_value <= alfa)
-    # print(significantlyBetterStatArray.astype(int))
     listOfTrue = np.argwhere(significantlyBetterStatArray)
 
     new_list, temp = [], listOfTrue[-1]
     for item in range(0, temp[0]+1):
         new_list.append([[x[1], x[2]] for x in listOfTrue if x[0] == item])
 
-    mapping = {0: 'MLP', 1: 'KNN', 2: 'DTC', 3: 'SVC'}
-
     indexed_matrix = [[(mapping[x[0]], mapping[x[1]]) for x in sublist] for sublist in new_list]
 
     for i in indexed_matrix:
         print(i)
+
+    return indexed_matrix
 
 
 def cv52cft(a, b, J=5, k=2):
@@ -238,12 +236,44 @@ def t_test_corrected(a, b, J=5, k=2):
     return t_stat, pval
 
 
-if __name__ == '__main__':
-    # scoresDone = np.load(directionScores + 'scores_20_v2', allow_pickle=True)
-    # print(tabulate([scoresDone]))
+def generate_latex_code(scoresDone, table):
+    latex_generated = []
+    scores_mean = np.mean(scoresDone, axis=2)
 
+    for n, table_element in enumerate(table):
+        latex_acc = " & ".join(["{}".format(str(format(x, '.3f'))) for x in scores_mean[n]]) + ' \\\\'
+        latex_generated.append(latex_acc)
+
+        mapping_in = {'MLP': [], 'KNN': [], 'DTC': [], 'SVC': [], 'GNB': []}
+        mapping_out = {'MLP': 1, 'KNN': 2, 'DTC': 3, 'SVC': 4, 'GNB': 5}
+
+        for pair in table_element:
+            mapping_in[pair[0]].append(mapping_out[pair[1]])
+
+        latex_labels = '& & & '
+        for key in mapping_in:
+            if len(mapping_in[key]) == 0:
+                values = "$^-$ & "
+                latex_labels = latex_labels + values
+            else:
+                values = " ".join(["$^{}$".format(str(x)) for x in mapping_in[key]])
+                latex_labels = latex_labels + values
+                if str(key) != str(list(mapping_in.keys())[-1]):
+                    latex_labels = latex_labels + ' & '
+                else:
+                    latex_labels = latex_labels + ' \\\\ '
+
+        latex_generated.append(latex_labels)
+
+    with open(scores_path_two + 'latex_wilcoxon.txt', 'w') as fp:
+        fp.write("\n".join(str(item) for item in latex_generated))
+
+
+if __name__ == '__main__':
     # classificationTwoGenres()
     # classificationTextOrPhotos(text_incl=False, photos_incl=True)
 
-    scoresDone = np.load(scores_path_two + 'scores_text_.npy', allow_pickle=True)
-    statistics(scoresDone)
+    # scoresDone = np.load(scores_path_two + 'scores_text_v3.npy', allow_pickle=True)
+    scoresDone = np.load(scores_path + 'scores_20_v3.npy', allow_pickle=True)
+    table = statistics(scoresDone)
+    generate_latex_code(scoresDone, table)
