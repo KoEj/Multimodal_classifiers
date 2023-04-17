@@ -164,12 +164,46 @@ def checkSamples():
     return genresDifferenceArray
 
 
-def statistics(scoresDone):
+def got_mapped_matrix(array):
     mapping = {0: 'MLP', 1: 'KNN', 2: 'DTC', 3: 'SVC', 4: 'GNB'}
+    listOfTrue = np.argwhere(array)
+
+    new_list, temp = [], listOfTrue[-1]
+    for item in range(0, temp[0]+1):
+        new_list.append([[x[1], x[2]] for x in listOfTrue if x[0] == item])
+
+    return [[(mapping[x[0]], mapping[x[1]]) for x in sublist] for sublist in new_list]
+
+
+def statistics(scoresDone):
+    alfa = 0.05
     scores_mean = np.mean(scoresDone, axis=2)
     print(np.around(scores_mean, decimals=3))
+    mean_scores = np.mean(scores_mean, axis=0)
+    print("Scores mean:", np.around(mean_scores, decimals=3))
 
-    alfa = 0.05
+    # mean ranks
+    ranks = []
+    for scores in scores_mean:
+        ranks.append(stats.rankdata(scores).tolist())
+    ranks = np.array(ranks)
+    print("Ranks:", ranks)
+
+    mean_ranks = np.mean(ranks, axis=0)
+    print("Mean ranks:", mean_ranks)
+
+    alfa = .05
+    w_statistic = np.zeros((len(classifiers), len(classifiers)))
+    p_rank_value = np.zeros((len(classifiers), len(classifiers)))
+
+    for i in range(len(classifiers)):
+        for j in range(len(classifiers)):
+            w_statistic[i, j], p_rank_value[i, j] = stats.ranksums(ranks.T[i], ranks.T[j])
+
+    significantlyBetterRank = np.logical_and(w_statistic > 0, p_rank_value <= alfa)
+    indexed_matrix_ranks = got_mapped_matrix([significantlyBetterRank])
+
+    # classifiers
     t_statistic = np.zeros((20, len(classifiers), len(classifiers)))
     p_value = np.zeros((20, len(classifiers), len(classifiers)))
 
@@ -178,22 +212,12 @@ def statistics(scoresDone):
         for j in range(scoresDone.shape[1]):
             # CLASSIFIERS
             for k in range(scoresDone.shape[1]):
-                t_statistic[i, j, k], p_value[i, j, k] = stats.ranksums(scoresDone[i, j], scoresDone[i, k])
-                # t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
+                t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
 
     significantlyBetterStatArray = np.logical_and(t_statistic > 0, p_value <= alfa)
-    listOfTrue = np.argwhere(significantlyBetterStatArray)
+    indexed_matrix_clfs = got_mapped_matrix(significantlyBetterStatArray)
 
-    new_list, temp = [], listOfTrue[-1]
-    for item in range(0, temp[0]+1):
-        new_list.append([[x[1], x[2]] for x in listOfTrue if x[0] == item])
-
-    indexed_matrix = [[(mapping[x[0]], mapping[x[1]]) for x in sublist] for sublist in new_list]
-
-    for i in indexed_matrix:
-        print(i)
-
-    return indexed_matrix
+    return indexed_matrix_ranks, indexed_matrix_clfs
 
 
 def cv52cft(a, b, J=5, k=2):
@@ -273,7 +297,8 @@ if __name__ == '__main__':
     # classificationTwoGenres()
     # classificationTextOrPhotos(text_incl=False, photos_incl=True)
 
-    # scoresDone = np.load(scores_path_two + 'scores_text_v3.npy', allow_pickle=True)
+    # scoresDone = np.load(scores_path_two + 'scores_photos_v3.npy', allow_pickle=True)
     scoresDone = np.load(scores_path + 'scores_20_v3.npy', allow_pickle=True)
-    table = statistics(scoresDone)
-    generate_latex_code(scoresDone, table)
+    ranks_table, clfs_table = statistics(scoresDone)
+    print(ranks_table)
+    # generate_latex_code(scoresDone, clfs_table)
