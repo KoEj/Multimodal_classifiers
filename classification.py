@@ -4,6 +4,7 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.base import clone
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
@@ -29,6 +30,9 @@ classifiers = [MLPClassifier(random_state=1, max_iter=300),
 
 kf = RepeatedStratifiedKFold(n_splits=2, n_repeats=5, random_state=1234)
 ros = RandomOverSampler(random_state=24)
+#scaler = StandardScaler()
+#scaler = MinMaxScaler()
+#scaler = Normalizer()
 
 
 def classificationTwoGenres():
@@ -57,7 +61,9 @@ def classificationTwoGenres():
             for fold_index, (train_index, test_index) in enumerate(tqdm(kf.split(X, y))):
                 X_train, X_test = X[train_index], X[test_index]
                 y_train, y_test = y[train_index], y[test_index]
-                X_res_train, y_res_train = ros.fit_resample(X_train, y_train)
+                # X_train_scaled = scaler.fit_transform(X_train)
+                # X_test_scaled = scaler.fit_transform(X_test)
+                X_res_train, y_res_train = ros.fit_resample(X_res_train, y_train)
 
                 for cls_index, base_cls in enumerate(classifiers):
                     cls = clone(base_cls)
@@ -68,7 +74,7 @@ def classificationTwoGenres():
         except KeyError:
             print('Error! for data:' + str(xList[i]) + ' and ' + str(yList[i]))
 
-    with open(scores_path + 'scores_' + str(len(xList)) + '_v3.npy', 'wb') as f:
+    with open(scores_path + 'scores_' + str(len(xList)) + '_v4_normalizer_2.npy', 'wb') as f:
         np.save(f, scores)
 
     scores_mean = np.mean(scores, axis=2)
@@ -203,19 +209,20 @@ def statistics(scoresDone):
     significantlyBetterRank = np.logical_and(w_statistic > 0, p_rank_value <= alfa)
     indexed_matrix_ranks = got_mapped_matrix([significantlyBetterRank])
 
-    # classifiers
-    t_statistic = np.zeros((20, len(classifiers), len(classifiers)))
-    p_value = np.zeros((20, len(classifiers), len(classifiers)))
-
-    for i in range(scoresDone.shape[0]):
-        # DATASETS
-        for j in range(scoresDone.shape[1]):
-            # CLASSIFIERS
-            for k in range(scoresDone.shape[1]):
-                t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
-
-    significantlyBetterStatArray = np.logical_and(t_statistic > 0, p_value <= alfa)
-    indexed_matrix_clfs = got_mapped_matrix(significantlyBetterStatArray)
+    # # classifiers
+    # t_statistic = np.zeros((20, len(classifiers), len(classifiers)))
+    # p_value = np.zeros((20, len(classifiers), len(classifiers)))
+    #
+    # for i in range(scoresDone.shape[0]):
+    #     # DATASETS
+    #     for j in range(scoresDone.shape[1]):
+    #         # CLASSIFIERS
+    #         for k in range(scoresDone.shape[1]):
+    #             t_statistic[i, j, k], p_value[i, j, k] = t_test_corrected(scoresDone[i, j], scoresDone[i, k])
+    #
+    # significantlyBetterStatArray = np.logical_and(t_statistic > 0, p_value <= alfa)
+    # indexed_matrix_clfs = got_mapped_matrix(significantlyBetterStatArray)
+    indexed_matrix_clfs = None
 
     return indexed_matrix_ranks, indexed_matrix_clfs
 
@@ -274,7 +281,7 @@ def generate_latex_code(scoresDone, table):
         for pair in table_element:
             mapping_in[pair[0]].append(mapping_out[pair[1]])
 
-        latex_labels = '& & & '
+        latex_labels = '& '
         for key in mapping_in:
             if len(mapping_in[key]) == 0:
                 values = "$^-$ & "
@@ -289,7 +296,7 @@ def generate_latex_code(scoresDone, table):
 
         latex_generated.append(latex_labels)
 
-    with open(scores_path_two + 'latex_wilcoxon.txt', 'w') as fp:
+    with open(scores_path_two + 'latex_v4_scaler.txt', 'w') as fp:
         fp.write("\n".join(str(item) for item in latex_generated))
 
 
@@ -298,7 +305,10 @@ if __name__ == '__main__':
     # classificationTextOrPhotos(text_incl=False, photos_incl=True)
 
     # scoresDone = np.load(scores_path_two + 'scores_photos_v3.npy', allow_pickle=True)
-    scoresDone = np.load(scores_path + 'scores_20_v3.npy', allow_pickle=True)
+    scoresDone = np.load(scores_path + 'scores_20_v4_normalizer.npy', allow_pickle=True)
+    scores_mean = np.mean(scoresDone, axis=2)
+    print(np.around(scores_mean, decimals=3))
+
+    # scoresDone = np.delete(scoresDone, (0, 2, 4), 1)
     ranks_table, clfs_table = statistics(scoresDone)
-    print(ranks_table)
     # generate_latex_code(scoresDone, clfs_table)
